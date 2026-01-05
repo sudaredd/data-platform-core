@@ -5,7 +5,6 @@ A generic, multi-tenant Data Platform built with Java 21, Spring Boot 3.x, and D
 ## 🎯 Key Features
 
 - **Dynamic Schema**: No static `@Table` classes - schema is configured at runtime
-- **Multi-Tenant**: Each tenant can have different table structures and configurations
 - **Auto-Partitioning**: Automatic bucket column injection (e.g., extracting year from dates)
 - **Scatter-Gather Queries**: Parallel async queries across partition buckets
 - **UDT Support**: Automatic conversion between Map ↔ UdtValue
