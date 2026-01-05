@@ -135,19 +135,34 @@
                     <version>3.2.3</version>
                 </plugin>
 
-                <!-- Google Java Format -->
+                <!-- Google Java Format via Spotless -->
                 <plugin>
-                    <groupId>com.spotify.fmt</groupId>
-                    <artifactId>fmt-maven-plugin</artifactId>
-                    <version>2.23</version>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>2.43.0</version>
                     <configuration>
-                        <sourceDirectory>src/main/java</sourceDirectory>
-                        <testSourceDirectory>src/test/java</testSourceDirectory>
-                        <verbose>false</verbose>
-                        <filesNamePattern>.*\.java</filesNamePattern>
-                        <skip>false</skip>
+                        <java>
+                            <!-- Explicit version required for Java 21 compatibility -->
+                            <googleJavaFormat>
+                                <version>1.31.0</version>
+                                <style>GOOGLE</style>
+                            </googleJavaFormat>
+                            
+                            <!-- This step also relies on javac internals, ensure it's compatible -->
+                            <removeUnusedImports />
+                        </java>
                     </configuration>
+                    <!-- Ensure your executions block is correct -->
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <phase>compile</phase>
+                        </execution>
+                    </executions>
                 </plugin>
+
             </plugins>
         </pluginManagement>
     </build>
