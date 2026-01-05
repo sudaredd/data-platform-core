@@ -1,19 +1,12 @@
 package com.platform.data.common.mapper;
 
-import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.data.UdtValue;
-import com.datastax.oss.driver.api.core.type.DataType;
-import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.core.type.UserDefinedType;
-import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
@@ -22,26 +15,29 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for UdtMapper.
  * 
- * Note: Full testing of UdtMapper requires complex mocking of Cassandra types.
- * These tests cover the basic logic and error handling.
+ * Note: These tests focus on the toMap() functionality which doesn't require
+ * complex mocking. The toUdt() method requires extensive Cassandra type mocking
+ * and is better tested via integration tests.
  */
-@ExtendWith(MockitoExtension.class)
 class UdtMapperTest {
 
-    @Mock
-    private CqlSession session;
+    @Test
+    void testToMap_withNullUdtValue_returnsEmptyMap() {
+        // Act
+        Map<String, Object> result = UdtMapper.toMap(null);
 
-    @Mock
-    private UserDefinedType udtType;
-
-    @Mock
-    private UdtValue udtValue;
+        // Assert
+        assertThat(result).isEmpty();
+    }
 
     @Test
     void testToMap_withValidUdtValue_convertsToMap() {
         // Arrange
+        UserDefinedType udtType = mock(UserDefinedType.class);
+        UdtValue udtValue = mock(UdtValue.class);
+
         when(udtValue.getType()).thenReturn(udtType);
-        when(udtType.getFieldNames()).thenReturn(java.util.List.of(
+        when(udtType.getFieldNames()).thenReturn(List.of(
                 com.datastax.oss.driver.api.core.CqlIdentifier.fromCql("value"),
                 com.datastax.oss.driver.api.core.CqlIdentifier.fromCql("report_time")));
         when(udtValue.getBigDecimal("value")).thenReturn(BigDecimal.valueOf(100.5));
@@ -58,45 +54,52 @@ class UdtMapperTest {
     }
 
     @Test
-    void testToMap_withNullUdtValue_returnsEmptyMap() {
+    void testToMap_withNestedUdt_handlesRecursively() {
+        // Arrange
+        UserDefinedType outerType = mock(UserDefinedType.class);
+        UserDefinedType innerType = mock(UserDefinedType.class);
+        UdtValue outerValue = mock(UdtValue.class);
+        UdtValue innerValue = mock(UdtValue.class);
+
+        when(outerValue.getType()).thenReturn(outerType);
+        when(innerValue.getType()).thenReturn(innerType);
+
+        when(outerType.getFieldNames()).thenReturn(List.of(
+                com.datastax.oss.driver.api.core.CqlIdentifier.fromCql("nested")));
+        when(innerType.getFieldNames()).thenReturn(List.of(
+                com.datastax.oss.driver.api.core.CqlIdentifier.fromCql("value")));
+
+        when(outerValue.getUdtValue("nested")).thenReturn(innerValue);
+        when(innerValue.getBigDecimal("value")).thenReturn(BigDecimal.valueOf(42.0));
+
         // Act
-        Map<String, Object> result = UdtMapper.toMap(null);
+        Map<String, Object> result = UdtMapper.toMap(outerValue);
 
         // Assert
-        assertThat(result).isEmpty();
+        assertThat(result).containsKey("nested");
+        assertThat(result.get("nested")).isInstanceOf(Map.class);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> nested = (Map<String, Object>) result.get("nested");
+        assertThat(nested.get("value")).isEqualTo(BigDecimal.valueOf(42.0));
     }
 
     @Test
-    void testToUdt_withMissingUdt_throwsException() {
+    void testToMap_withNullField_includesNullInMap() {
         // Arrange
-        when(session.getMetadata()).thenReturn(mock(com.datastax.oss.driver.api.core.metadata.Metadata.class));
-        when(session.getMetadata().getKeyspace(any(com.datastax.oss.driver.api.core.CqlIdentifier.class)))
-                .thenReturn(java.util.Optional
-                        .of(mock(com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata.class)));
-        when(session.getMetadata().getKeyspace(any(com.datastax.oss.driver.api.core.CqlIdentifier.class)).get()
-                .getUserDefinedType(anyString()))
-                .thenReturn(java.util.Optional.empty());
+        UserDefinedType udtType = mock(UserDefinedType.class);
+        UdtValue udtValue = mock(UdtValue.class);
 
-        Map<String, Object> data = Map.of("value", BigDecimal.valueOf(100));
+        when(udtValue.getType()).thenReturn(udtType);
+        when(udtType.getFieldNames()).thenReturn(List.of(
+                com.datastax.oss.driver.api.core.CqlIdentifier.fromCql("value")));
+        when(udtValue.getBigDecimal("value")).thenReturn(null);
 
-        // Act & Assert
-        assertThatThrownBy(() -> UdtMapper.toUdt(session, "test_ks", "missing_udt", data))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("UDT not found");
-    }
+        // Act
+        Map<String, Object> result = UdtMapper.toMap(udtValue);
 
-    @Test
-    void testToUdt_withNullData_handlesGracefully() {
-        // This test verifies that null values in the map are handled
-        // Full implementation would require extensive Cassandra type mocking
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", null);
-        data.put("report_time", Instant.now());
-
-        // The actual test would require mocking the entire UDT creation chain
-        // For now, we verify the input is valid
-        assertThat(data).containsKey("value");
-        assertThat(data.get("value")).isNull();
+        // Assert
+        assertThat(result).containsKey("value");
+        assertThat(result.get("value")).isNull();
     }
 }

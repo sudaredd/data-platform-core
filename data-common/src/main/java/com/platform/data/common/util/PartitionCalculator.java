@@ -32,8 +32,8 @@ public class PartitionCalculator {
         Object dateValue = findDateValue(payload);
 
         if (dateValue == null) {
-            throw new IllegalArgumentException(
-                    "Cannot calculate bucket: no date field found in payload for bucket column: " + bucketColumn);
+            // Return null instead of throwing exception for missing date
+            return null;
         }
 
         return extractYear(dateValue);
@@ -83,9 +83,18 @@ public class PartitionCalculator {
      * 
      * @param startDate Start date
      * @param endDate   End date
-     * @return Array of [startYear, endYear]
+     * @return Array of all years in the range [startYear, startYear+1, ...,
+     *         endYear]
      */
     public static int[] calculateYearRange(LocalDate startDate, LocalDate endDate) {
-        return new int[] { startDate.getYear(), endDate.getYear() };
+        int startYear = startDate.getYear();
+        int endYear = endDate.getYear();
+
+        int[] years = new int[endYear - startYear + 1];
+        for (int i = 0; i < years.length; i++) {
+            years[i] = startYear + i;
+        }
+
+        return years;
     }
 }

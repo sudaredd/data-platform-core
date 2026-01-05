@@ -103,7 +103,7 @@ public class UdtMapper {
      */
     public static Map<String, Object> toMap(UdtValue udtValue) {
         if (udtValue == null) {
-            return null;
+            return new HashMap<>();
         }
 
         Map<String, Object> map = new HashMap<>();

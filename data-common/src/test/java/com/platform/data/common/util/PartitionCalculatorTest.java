@@ -39,11 +39,10 @@ class PartitionCalculatorTest {
     @Test
     void testCalculateBucket_withNoBucketColumn_returnsNull() {
         // Arrange
-        TenantConfig config = new TenantConfig(
+        TenantConfig config = TenantConfig.withoutBucket(
                 "test_ks",
                 "test_table",
                 List.of("tenant_id"),
-                null,
                 Set.of());
 
         Map<String, Object> payload = new HashMap<>();
