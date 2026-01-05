@@ -1,0 +1,32 @@
+# Maven
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Remomix
+remomix*
+
+# Test containers
+.testcontainers/
+
+# Spring Boot
+spring-boot-devtools.properties
