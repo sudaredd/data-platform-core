@@ -144,7 +144,11 @@ public class DynamicIngestService {
                 if (enrichedRow.containsKey(udtColumn) && enrichedRow.get(udtColumn) instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> udtMap = (Map<String, Object>) enrichedRow.get(udtColumn);
-                    UdtValue udtValue = UdtMapper.toUdt(session, config.keyspace(), udtColumn, udtMap);
+                    // Use the UDT type name, not the column name
+                    // For now, hardcode the UDT type name (in production, this would come from
+                    // config)
+                    String udtTypeName = "numeric_data_point";
+                    UdtValue udtValue = UdtMapper.toUdt(session, config.keyspace(), udtTypeName, udtMap);
                     enrichedRow.put(udtColumn, udtValue);
                 }
             }

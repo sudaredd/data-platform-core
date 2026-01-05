@@ -145,14 +145,8 @@ public class DynamicRetrievalService {
             }
         }
 
-        // Add bucket column if present in criteria
-        if (config.hasBucket()) {
-            String bucketColumn = config.getBucketColumnOrThrow();
-            Object bucketValue = criteria.get(bucketColumn);
-            if (bucketValue != null) {
-                select = select.whereColumn(bucketColumn).isEqualTo(QueryBuilder.bindMarker(bucketColumn));
-            }
-        }
+        // Note: bucket column is already part of partition keys, so no need to add it
+        // again
 
         // Add date range filter
         select = select
@@ -175,14 +169,7 @@ public class DynamicRetrievalService {
             }
         }
 
-        // Bind bucket column
-        if (config.hasBucket()) {
-            String bucketColumn = config.getBucketColumnOrThrow();
-            Object bucketValue = criteria.get(bucketColumn);
-            if (bucketValue != null) {
-                builder.setInt(bucketColumn, (Integer) bucketValue);
-            }
-        }
+        // Note: bucket column binding is already handled by partition keys loop above
 
         // Bind date range
         builder.setLocalDate("start_date", startDate);
