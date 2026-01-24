@@ -18,15 +18,18 @@ public class QueryController {
   }
 
   /**
-   * Queries data for a specific tenant.
+   * Queries data for a specific tenant and periodicity.
    *
-   * @param tenantId The tenant identifier
-   * @param criteria Query criteria (must include start_date and end_date)
+   * @param tenantId    The tenant identifier
+   * @param periodicity The data periodicity (e.g., DAILY, MONTHLY)
+   * @param criteria    Query criteria (must include start_date and end_date)
    * @return List of matching records
    */
-  @PostMapping("/{tenantId}")
+  @PostMapping("/{tenantId}/{periodicity}")
   public ResponseEntity<List<Map<String, Object>>> query(
-      @PathVariable String tenantId, @RequestBody Map<String, Object> criteria) {
+      @PathVariable("tenantId") String tenantId,
+      @PathVariable("periodicity") String periodicity,
+      @RequestBody Map<String, Object> criteria) {
     List<Map<String, Object>> results = retrievalService.retrieve(tenantId, criteria);
     return ResponseEntity.ok(results);
   }

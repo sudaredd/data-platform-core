@@ -24,6 +24,12 @@
             <artifactId>java-driver-core</artifactId>
         </dependency>
 
+        <!-- Spring Context for @Component -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

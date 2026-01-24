@@ -17,8 +17,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Dynamic retrieval service implementing scatter-gather pattern for bucketed queries. Features: -
- * Parallel async queries across year buckets - Automatic UDT to Map conversion using shared mapper
+ * Dynamic retrieval service implementing scatter-gather pattern for bucketed
+ * queries. Features: -
+ * Parallel async queries across year buckets - Automatic UDT to Map conversion
+ * using shared mapper
  * - Polymorphic routing via TenantConfigRegistry
  */
 @Service
@@ -35,7 +37,8 @@ public class DynamicRetrievalService {
   }
 
   /**
-   * Retrieves data for a specific tenant based on criteria. Implements scatter-gather pattern for
+   * Retrieves data for a specific tenant based on criteria. Implements
+   * scatter-gather pattern for
    * bucketed tables.
    *
    * @param tenantId The tenant identifier
@@ -58,11 +61,15 @@ public class DynamicRetrievalService {
     // Lookup configuration
     TenantConfig config = registry.lookup(tenantId, periodicity, dataType);
 
+    // Inject tenant_id into criteria for partition key filtering
+    Map<String, Object> enrichedCriteria = new HashMap<>(criteria);
+    enrichedCriteria.put("tenant_id", tenantId);
+
     // Scatter-gather based on bucket configuration
     if (config.hasBucket()) {
-      return scatterGatherQuery(config, criteria, startDate, endDate);
+      return scatterGatherQuery(config, enrichedCriteria, startDate, endDate);
     } else {
-      return singleQuery(config, criteria, startDate, endDate);
+      return singleQuery(config, enrichedCriteria, startDate, endDate);
     }
   }
 
@@ -85,17 +92,15 @@ public class DynamicRetrievalService {
       Map<String, Object> bucketCriteria = new HashMap<>(criteria);
       bucketCriteria.put(config.getBucketColumnOrThrow(), year);
 
-      CompletableFuture<List<Row>> future =
-          executeAsyncQuery(config, bucketCriteria, startDate, endDate);
+      CompletableFuture<List<Row>> future = executeAsyncQuery(config, bucketCriteria, startDate, endDate);
       futures.add(future);
     }
 
     // Gather all results
-    List<Row> allRows =
-        futures.stream()
-            .map(CompletableFuture::join)
-            .flatMap(List::stream)
-            .collect(Collectors.toList());
+    List<Row> allRows = futures.stream()
+        .map(CompletableFuture::join)
+        .flatMap(List::stream)
+        .collect(Collectors.toList());
 
     log.info("Gathered {} total rows from {} buckets", allRows.size(), futures.size());
 
@@ -131,12 +136,11 @@ public class DynamicRetrievalService {
     // again
 
     // Add date range filter
-    select =
-        select
-            .whereColumn("period_date")
-            .isGreaterThanOrEqualTo(QueryBuilder.bindMarker("start_date"))
-            .whereColumn("period_date")
-            .isLessThanOrEqualTo(QueryBuilder.bindMarker("end_date"));
+    select = select
+        .whereColumn("period_date")
+        .isGreaterThanOrEqualTo(QueryBuilder.bindMarker("start_date"))
+        .whereColumn("period_date")
+        .isLessThanOrEqualTo(QueryBuilder.bindMarker("end_date"));
 
     // Prepare and bind
     PreparedStatement prepared = session.prepare(select.build());
@@ -176,7 +180,10 @@ public class DynamicRetrievalService {
             });
   }
 
-  /** Converts a Cassandra Row to a Map, recursively converting UDTs using shared mapper. */
+  /**
+   * Converts a Cassandra Row to a Map, recursively converting UDTs using shared
+   * mapper.
+   */
   private Map<String, Object> convertRowToMap(Row row, TenantConfig config) {
     Map<String, Object> result = new HashMap<>();
 

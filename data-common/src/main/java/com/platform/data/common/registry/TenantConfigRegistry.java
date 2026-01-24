@@ -6,10 +6,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.stereotype.Component;
+
 /**
- * Centralized tenant configuration registry with polymorphic routing support. Supports multiple
+ * Centralized tenant configuration registry with polymorphic routing support.
+ * Supports multiple
  * table types per tenant based on (tenantId, periodicity, dataType).
  */
+@Component
 public class TenantConfigRegistry {
 
   private static final Logger log = LoggerFactory.getLogger(TenantConfigRegistry.class);
@@ -19,10 +23,10 @@ public class TenantConfigRegistry {
   /**
    * Registers a tenant configuration.
    *
-   * @param tenantId Tenant identifier
+   * @param tenantId    Tenant identifier
    * @param periodicity Data periodicity (e.g., "DAILY", "MONTHLY")
-   * @param dataType Data type (e.g., "NUMERIC", "STRING")
-   * @param config Tenant configuration
+   * @param dataType    Data type (e.g., "NUMERIC", "STRING")
+   * @param config      Tenant configuration
    */
   public void register(String tenantId, String periodicity, String dataType, TenantConfig config) {
     RegistryKey key = new RegistryKey(tenantId, periodicity, dataType);
@@ -33,9 +37,9 @@ public class TenantConfigRegistry {
   /**
    * Looks up a tenant configuration.
    *
-   * @param tenantId Tenant identifier
+   * @param tenantId    Tenant identifier
    * @param periodicity Data periodicity
-   * @param dataType Data type
+   * @param dataType    Data type
    * @return Tenant configuration
    * @throws IllegalArgumentException if config not found
    */

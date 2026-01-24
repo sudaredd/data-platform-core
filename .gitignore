@@ -30,3 +30,11 @@ remomix*
 
 # Spring Boot
 spring-boot-devtools.properties
+
+# Python
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/

@@ -19,8 +19,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Dynamic ingestion service with smart batching support. Features: - Partition-level batching for
- * high throughput - Automatic UDT conversion using shared mapper - Polymorphic routing via
+ * Dynamic ingestion service with smart batching support. Features: -
+ * Partition-level batching for
+ * high throughput - Automatic UDT conversion using shared mapper - Polymorphic
+ * routing via
  * TenantConfigRegistry
  */
 @Service
@@ -39,11 +41,10 @@ public class DynamicIngestService {
   /** Ingests a single row (legacy method for backward compatibility). */
   public void ingest(String tenantId, Map<String, Object> payload) {
     // For single row, create a batch request with one item
-    IngestBatchRequest request =
-        new IngestBatchRequest(
-            tenantId,
-            "DAILY", // Default periodicity
-            List.of(payload));
+    IngestBatchRequest request = new IngestBatchRequest(
+        tenantId,
+        "DAILY", // Default periodicity
+        List.of(payload));
 
     ingestBatchAsync(request).join();
   }
@@ -175,8 +176,7 @@ public class DynamicIngestService {
     }
 
     var firstEntry = iterator.next();
-    var regularInsert =
-        insertInto.value(firstEntry.getKey(), QueryBuilder.bindMarker(firstEntry.getKey()));
+    var regularInsert = insertInto.value(firstEntry.getKey(), QueryBuilder.bindMarker(firstEntry.getKey()));
 
     // Chain the rest of the values
     while (iterator.hasNext()) {
@@ -189,23 +189,63 @@ public class DynamicIngestService {
 
     // Bind the values
     BoundStatement bound = prepared.boundStatementBuilder().build();
+    ColumnDefinitions definitions = prepared.getVariableDefinitions();
 
     for (Map.Entry<String, Object> entry : payload.entrySet()) {
       String key = entry.getKey();
       Object value = entry.getValue();
 
-      if (value instanceof String s) {
-        bound = bound.setString(key, s);
-      } else if (value instanceof Integer i) {
-        bound = bound.setInt(key, i);
-      } else if (value instanceof LocalDate ld) {
-        bound = bound.setLocalDate(key, ld);
-      } else if (value instanceof UdtValue udt) {
-        bound = bound.setUdtValue(key, udt);
-      } else if (value instanceof BigDecimal bd) {
-        bound = bound.setBigDecimal(key, bd);
-      } else {
-        log.warn("Unsupported type for column {}: {}", key, value.getClass());
+      if (value == null) {
+        continue;
+      }
+
+      if (!definitions.contains(key)) {
+        log.warn("Column {} not found in prepared statement, skipping", key);
+        continue;
+      }
+
+      com.datastax.oss.driver.api.core.type.DataType expectedType = definitions.get(key).getType();
+
+      try {
+        if (value instanceof UdtValue udt) {
+          bound = bound.setUdtValue(key, udt);
+        } else if (value instanceof String s) {
+          // Smart conversion for Strings based on expected Cassandra type
+          if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.DATE)) {
+            bound = bound.setLocalDate(key, LocalDate.parse(s));
+          } else if (expectedType.equals(
+              com.datastax.oss.driver.api.core.type.DataTypes.TIMESTAMP)) {
+            bound = bound.setInstant(key, java.time.Instant.parse(s));
+          } else if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.TEXT)
+              || expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.ASCII)) {
+            bound = bound.setString(key, s);
+          } else {
+            log.warn("Cannot bind String to expected type {} for column {}", expectedType, key);
+          }
+        } else if (value instanceof Number n) {
+          if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.INT)) {
+            bound = bound.setInt(key, n.intValue());
+          } else if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.BIGINT)) {
+            bound = bound.setLong(key, n.longValue());
+          } else if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.DECIMAL)) {
+            bound = bound.setBigDecimal(key, BigDecimal.valueOf(n.doubleValue()));
+          } else if (expectedType.equals(com.datastax.oss.driver.api.core.type.DataTypes.DOUBLE)) {
+            bound = bound.setDouble(key, n.doubleValue());
+          } else {
+            log.warn("Cannot bind Number to expected type {} for column {}", expectedType, key);
+          }
+        } else if (value instanceof LocalDate ld) {
+          bound = bound.setLocalDate(key, ld);
+        } else {
+          log.warn(
+              "Unsupported bind attempt for column {}: {} -> {}",
+              key,
+              value.getClass().getSimpleName(),
+              expectedType);
+        }
+      } catch (Exception e) {
+        log.error("Error binding column {}: {}", key, e.getMessage());
+        throw new RuntimeException("Binding error for column " + key, e);
       }
     }
 

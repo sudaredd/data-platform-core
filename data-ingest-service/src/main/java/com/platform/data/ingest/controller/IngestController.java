@@ -22,12 +22,12 @@ public class IngestController {
    * Ingests a single row for a specific tenant.
    *
    * @param tenantId The tenant identifier
-   * @param payload The data to ingest
+   * @param payload  The data to ingest
    * @return Success response
    */
   @PostMapping("/{tenantId}")
   public ResponseEntity<Map<String, String>> ingest(
-      @PathVariable String tenantId, @RequestBody Map<String, Object> payload) {
+      @PathVariable("tenantId") String tenantId, @RequestBody Map<String, Object> payload) {
     ingestService.ingest(tenantId, payload);
     return ResponseEntity.ok(Map.of("status", "success", "tenant", tenantId));
   }
@@ -44,11 +44,10 @@ public class IngestController {
     return ingestService
         .ingestBatchAsync(request)
         .thenApply(
-            v ->
-                ResponseEntity.ok(
-                    Map.of(
-                        "status", "success",
-                        "tenant", request.tenantId(),
-                        "rows", request.data().size())));
+            v -> ResponseEntity.ok(
+                Map.of(
+                    "status", "success",
+                    "tenant", request.tenantId(),
+                    "rows", request.data().size())));
   }
 }
